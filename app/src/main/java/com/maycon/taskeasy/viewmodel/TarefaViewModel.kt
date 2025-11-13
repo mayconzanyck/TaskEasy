@@ -5,26 +5,36 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.maycon.taskeasy.data.TarefaRepository
 import com.maycon.taskeasy.model.Tarefa
-import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 // A ViewModel precisa do Repositório para funcionar
 class TarefaViewModel(private val repository: TarefaRepository) : ViewModel() {
 
-    // ID do usuário logado (vamos 'chumbar' um valor por enquanto para testes)
-    private val idUsuarioLogado = "usuario_teste_123"
+    // Começa como uma lista vazia. Só será preenchida após o login.
+    private val _tarefas = MutableStateFlow<List<Tarefa>>(emptyList())
+    val tarefas: StateFlow<List<Tarefa>> = _tarefas.asStateFlow()
 
-    // Aqui o 'Flow' do DAO é convertido em 'StateFlow'
-    // A tela vai "ouvir" esse 'stateFlow' para receber a lista de tarefas
-    val todasTarefas: StateFlow<List<Tarefa>> =
-        repository.getTarefasPorUsuario(idUsuarioLogado)
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5000L),
-                initialValue = emptyList()
-            )
+    private var idUsuarioAtual: String? = null
+
+    // Função que a UI (HomeScreen) vai chamar após o login
+    fun carregarTarefas(idUsuario: String) {
+        // Evita recarregar desnecessariamente se o ID não mudou
+        if (idUsuario == idUsuarioAtual) return
+        idUsuarioAtual = idUsuario
+
+        viewModelScope.launch {
+            // "Ouve" o banco de dados (Flow) e atualiza o _tarefas (StateFlow)
+            repository.getTarefasPorUsuario(idUsuario)
+                .distinctUntilChanged() // Só atualiza se a lista realmente mudar
+                .collect { listaDeTarefas ->
+                    _tarefas.value = listaDeTarefas
+                }
+        }
+    }
 
     // Funções que a tela vai chamar (usando Corrotinas)
     fun inserir(tarefa: Tarefa) {
