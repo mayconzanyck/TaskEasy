@@ -30,19 +30,21 @@ import com.maycon.taskeasy.viewmodel.AuthViewModel
 @Composable
 fun LoginScreen(
     onNavigateToRegister: () -> Unit,
-    onNavigateToHome: () -> Unit,
-    // Pega a instância da ViewModel padrão
+    onNavigateToHome: (userId: String) -> Unit,
     authViewModel: AuthViewModel = viewModel()
 ) {
-    // Coleta os estados da ViewModel
     val uiState by authViewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    // Observa se o login teve sucesso para navegar
-    LaunchedEffect(key1 = uiState.loginSucesso) {
-        if (uiState.loginSucesso) {
-            onNavigateToHome()
-            authViewModel.onLoginSuccessHandled() // Limpa o estado
+    LaunchedEffect(key1 = uiState.loginSucesso, key2 = uiState.userId) {
+
+        // 1. Captura o ID em uma variável local IMUTÁVEL (val)
+        val userId = uiState.userId
+
+        // 2. Checa a variável local
+        if (uiState.loginSucesso && userId != null) {
+            onNavigateToHome(userId) // 3. Usa a variável local (que é 100% segura)
+            authViewModel.onLoginSuccessHandled()
         }
     }
 

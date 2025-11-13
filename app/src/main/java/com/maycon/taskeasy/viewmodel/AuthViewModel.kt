@@ -18,7 +18,8 @@ data class AuthUiState(
     val mensagemErro: String? = null,
     val isLoading: Boolean = false,
     val loginSucesso: Boolean = false,
-    val registroSucesso: Boolean = false
+    val registroSucesso: Boolean = false,
+    val userId: String? = null
 )
 
 class AuthViewModel : ViewModel() {
@@ -44,13 +45,19 @@ class AuthViewModel : ViewModel() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, mensagemErro = null) }
             try {
-                auth.signInWithEmailAndPassword(
+                val authResult = auth.signInWithEmailAndPassword(
                     _uiState.value.email,
                     _uiState.value.senha
                 ).await() // Espera a tarefa do Firebase terminar
 
                 // Sucesso
-                _uiState.update { it.copy(isLoading = false, loginSucesso = true) }
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        loginSucesso = true,
+                        userId = authResult.user?.uid // Captura o ID do usuário
+                    )
+                }
             } catch (e: FirebaseAuthException) {
                 // Trata erros comuns do Firebase
                 val erroMsg = when (e.errorCode) {
@@ -95,7 +102,7 @@ class AuthViewModel : ViewModel() {
 
     // Limpa o estado de sucesso (para a UI não navegar de novo)
     fun onLoginSuccessHandled() {
-        _uiState.update { it.copy(loginSucesso = false, email = "", senha = "") }
+        _uiState.update { it.copy(loginSucesso = false, email = "", senha = "", userId = null) }
     }
 
     fun onRegisterSuccessHandled() {
